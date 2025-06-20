@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
+import Providers from './Providers';
 
 const poppins = Poppins({
     weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
@@ -27,7 +28,7 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
             <body
                 className={`${poppins.className} antialiased min-h-screen flex flex-col`}
             >
-                {children}
+                <Providers>{children}</Providers>
             </body>
         </html>
     );

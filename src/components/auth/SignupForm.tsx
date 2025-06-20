@@ -3,21 +3,77 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SignupFormData, signUpSchema } from '@/lib/validation/signupSchema';
-import { signUp } from '@/lib/api/auth';
+import { useSignup } from '@/hooks/useSignup';
+import toast from 'react-hot-toast';
+import axios from 'axios';
+import { useState } from 'react';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
+
+const getSignupErrorMessage = (error: unknown): string => {
+    if (axios.isAxiosError(error)) {
+        const apiError = error.response?.data?.error;
+        const details: string =
+            (typeof apiError?.details === 'string' && apiError.details) ||
+            (typeof apiError?.message === 'string' && apiError.message) ||
+            (typeof error.message === 'string' && error.message) ||
+            '';
+
+        if (details.includes('request this after')) {
+            return 'You are signing up too quickly. Please wait a minute before trying again.';
+        }
+        if (details.includes('duplicate key value')) {
+            return 'An account with this email already exists.';
+        }
+        if (details.toLowerCase().includes('invalid email')) {
+            return 'Please enter a valid email address.';
+        }
+        if (details.toLowerCase().includes('password should be at least')) {
+            return 'Password is too weak. Please use a stronger password.';
+        }
+        if (details.toLowerCase().includes('email rate limit')) {
+            return 'Too many sign up attempts. Please try again later.';
+        }
+        if (details.toLowerCase().includes('already registered')) {
+            return 'This email is already registered.';
+        }
+        if (details) {
+            return details;
+        }
+    }
+    // Handle plain Error
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return 'Sign up failed. Please try again.';
+};
 
 export const SignupForm = () => {
     const {
         register,
         handleSubmit,
-        formState: { errors, isSubmitting },
+        formState: { errors },
         reset,
     } = useForm<SignupFormData>({
         resolver: zodResolver(signUpSchema),
     });
 
-    const onSubmit = async (data: SignupFormData) => {
-        // TODO: Call from react query hook
-        await signUp(data);
+    const { userSignup, isLoading } = useSignup();
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const onSubmit = (data: SignupFormData) => {
+        userSignup(data, {
+            onSuccess: () => {
+                reset();
+                toast.success('Account created! Check your email to verify.', {
+                    position: 'top-right',
+                });
+            },
+            onError: (error) => {
+                const message = getSignupErrorMessage(error);
+                toast.error(message, { position: 'top-right' });
+            },
+        });
     };
 
     const handleSocialSignup = async (provider: 'google' | 'github') => {
@@ -34,7 +90,7 @@ export const SignupForm = () => {
             <div className="space-y-3">
                 <button
                     onClick={() => handleSocialSignup('google')}
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                     className="w-full flex cursor-pointer items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-2"
                 >
                     <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -60,7 +116,7 @@ export const SignupForm = () => {
 
                 <button
                     onClick={() => handleSocialSignup('github')}
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                     className="w-full flex cursor-pointer items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     <svg
@@ -105,7 +161,7 @@ export const SignupForm = () => {
                                     : 'border-gray-300'
                             }`}
                             placeholder="First name"
-                            disabled={isSubmitting}
+                            disabled={isLoading}
                         />
                         {errors.firstName && (
                             <p className="mt-1 text-sm text-red-600">
@@ -132,7 +188,7 @@ export const SignupForm = () => {
                                     : 'border-gray-300'
                             }`}
                             placeholder="Last name"
-                            disabled={isSubmitting}
+                            disabled={isLoading}
                         />
                         {errors.lastName && (
                             <p className="mt-1 text-sm text-red-600">
@@ -141,7 +197,6 @@ export const SignupForm = () => {
                         )}
                     </div>
                 </div>
-
                 <div>
                     <label
                         htmlFor="email"
@@ -158,7 +213,7 @@ export const SignupForm = () => {
                             errors.email ? 'border-red-300' : 'border-gray-300'
                         }`}
                         placeholder="Enter your email"
-                        disabled={isSubmitting}
+                        disabled={isLoading}
                     />
                     {errors.email && (
                         <p className="mt-1 text-sm text-red-600">
@@ -166,7 +221,6 @@ export const SignupForm = () => {
                         </p>
                     )}
                 </div>
-
                 <div>
                     <label
                         htmlFor="password"
@@ -174,26 +228,39 @@ export const SignupForm = () => {
                     >
                         Password
                     </label>
-                    <input
-                        id="password"
-                        {...register('password')}
-                        type="password"
-                        autoComplete="new-password"
-                        className={`mt-1 block text-black w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            errors.password
-                                ? 'border-red-300'
-                                : 'border-gray-300'
-                        }`}
-                        placeholder="Create a password"
-                        disabled={isSubmitting}
-                    />
+                    <div className="relative">
+                        <input
+                            id="password"
+                            {...register('password')}
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className={`mt-1 block text-black w-full px-3 py-2 pr-10 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                errors.password
+                                    ? 'border-red-300'
+                                    : 'border-gray-300'
+                            }`}
+                            placeholder="Create a password"
+                            disabled={isLoading}
+                        />
+                        <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 focus:outline-none"
+                            onClick={() => setShowPassword((v) => !v)}
+                        >
+                            {showPassword ? (
+                                <FiEyeOff className="h-5 w-5" />
+                            ) : (
+                                <FiEye className="h-5 w-5" />
+                            )}
+                        </button>
+                    </div>
                     {errors.password && (
                         <p className="mt-1 text-sm text-red-600">
                             {errors.password.message}
                         </p>
                     )}
                 </div>
-
                 <div>
                     <label
                         htmlFor="confirmPassword"
@@ -201,32 +268,45 @@ export const SignupForm = () => {
                     >
                         Confirm password
                     </label>
-                    <input
-                        id="confirmPassword"
-                        {...register('confirmPassword')}
-                        type="password"
-                        autoComplete="new-password"
-                        className={`mt-1 block text-black w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            errors.confirmPassword
-                                ? 'border-red-300'
-                                : 'border-gray-300'
-                        }`}
-                        placeholder="Confirm your password"
-                        disabled={isSubmitting}
-                    />
+                    <div className="relative">
+                        <input
+                            id="confirmPassword"
+                            {...register('confirmPassword')}
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className={`mt-1 block text-black w-full px-3 py-2 pr-10 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                errors.confirmPassword
+                                    ? 'border-red-300'
+                                    : 'border-gray-300'
+                            }`}
+                            placeholder="Confirm your password"
+                            disabled={isLoading}
+                        />
+                        <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 focus:outline-none"
+                            onClick={() => setShowConfirmPassword((v) => !v)}
+                        >
+                            {showConfirmPassword ? (
+                                <FiEyeOff className="h-5 w-5" />
+                            ) : (
+                                <FiEye className="h-5 w-5" />
+                            )}
+                        </button>
+                    </div>
                     {errors.confirmPassword && (
                         <p className="mt-1 text-sm text-red-600">
                             {errors.confirmPassword.message}
                         </p>
                     )}
                 </div>
-
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    {isSubmitting ? (
+                    {isLoading ? (
                         <div className="flex items-center">
                             <svg
                                 className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
