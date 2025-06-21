@@ -1,5 +1,5 @@
-import supabaseAdmin from '../supabase/admin';
-import { SignupFormData } from '../validation/signupSchema';
+import supabaseAdmin from '../../supabase/admin';
+import { SignupFormData } from '../../validation/signupSchema';
 
 export const signUp = async (data: SignupFormData) => {
     const { email, password, firstName, lastName } = data;

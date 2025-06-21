@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signUp } from '@/lib/api/auth';
+import { signUp } from '@/lib/api/auth/signUp';
 import { SignupFormData } from '../../../lib/validation/signupSchema';
 
 export async function POST(req: NextRequest) {

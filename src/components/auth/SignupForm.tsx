@@ -3,14 +3,14 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SignupFormData, signUpSchema } from '@/lib/validation/signupSchema';
-import { useSignup } from '@/hooks/useSignup';
+import { useSignup } from '@/hooks/mutations/useSignup';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useState } from 'react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 const getSignupErrorMessage = (error: unknown): string => {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
         const apiError = error.response?.data?.error;
         const details: string =
             (typeof apiError?.details === 'string' && apiError.details) ||

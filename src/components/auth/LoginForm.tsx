@@ -3,24 +3,110 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LoginFormData, loginSchema } from '@/lib/validation/loginSchema';
+import { useLogin } from '@/hooks/mutations/useLogin';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { useState } from 'react';
+
+const getLoginErrorMessage = (error: unknown): string => {
+    if (
+        error &&
+        typeof error === 'object' &&
+        'details' in error &&
+        'message' in error
+    ) {
+        const errorDetails = String(error.details).toLowerCase();
+
+        if (errorDetails.includes('invalid login credentials')) {
+            return 'Invalid email or password. Please check your credentials and try again.';
+        }
+        if (errorDetails.includes('email not confirmed')) {
+            return 'Please verify your email address before logging in.';
+        }
+        if (errorDetails.includes('too many requests')) {
+            return 'Too many login attempts. Please wait a few minutes before trying again.';
+        }
+        if (errorDetails.includes('user not found')) {
+            return 'No account found with this email address.';
+        }
+        if (errorDetails.includes('invalid email')) {
+            return 'Please enter a valid email address.';
+        }
+        if (errorDetails.includes('password is incorrect')) {
+            return 'Incorrect password. Please try again.';
+        }
+        if (errorDetails.includes('account locked')) {
+            return 'Your account has been temporarily locked due to multiple failed attempts.';
+        }
+        if (errorDetails.includes('email rate limit')) {
+            return 'Too many login attempts. Please try again later.';
+        }
+        if (errorDetails.includes('invalid credentials')) {
+            return 'Invalid email or password. Please check your credentials and try again.';
+        }
+        if (errorDetails.includes('email not verified')) {
+            return 'Please verify your email address before logging in.';
+        }
+
+        // Return the original error message if no specific case matches
+        return String(error.message);
+    }
+
+    // Handle plain Error
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    // Handle string errors
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    return 'Login failed. Please try again.';
+};
 
 export const LoginForm = () => {
+    const router = useRouter();
+    const { userLogin, isLoading } = useLogin();
+    const [showPassword, setShowPassword] = useState(false);
+
     const {
         register,
         handleSubmit,
-        formState: { errors, isSubmitting },
+        formState: { errors },
         reset,
     } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
     });
 
-    const onSubmit = async (data: LoginFormData) => {
-        // TODO: Implement login logic with Supabase
-        console.log('Login attempt:', data);
-        // Simulate API call
-        setTimeout(() => {
-            reset();
-        }, 2000);
+    const onSubmit = (data: LoginFormData) => {
+        userLogin(data, {
+            onSuccess: (result) => {
+                if (result.error) {
+                    const message = getLoginErrorMessage(result.error);
+                    toast.error(message, {
+                        position: 'top-right',
+                    });
+                    return;
+                }
+
+                if (result.user && result.session) {
+                    reset();
+                    toast.success('Login successful!', {
+                        position: 'top-right',
+                    });
+                    router.push('/');
+                }
+            },
+            onError: (error) => {
+                console.error('Login error:', error);
+                const message = getLoginErrorMessage(error);
+                toast.error(message, {
+                    position: 'top-right',
+                });
+            },
+        });
     };
 
     const handleSocialLogin = async (provider: 'google' | 'github') => {
@@ -35,7 +121,7 @@ export const LoginForm = () => {
             <div className="space-y-3">
                 <button
                     onClick={() => handleSocialLogin('google')}
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                     className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -60,7 +146,7 @@ export const LoginForm = () => {
                 </button>
                 <button
                     onClick={() => handleSocialLogin('github')}
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                     className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     <svg
@@ -102,7 +188,7 @@ export const LoginForm = () => {
                             errors.email ? 'border-red-300' : 'border-gray-300'
                         }`}
                         placeholder="Enter your email"
-                        disabled={isSubmitting}
+                        disabled={isLoading}
                     />
                     {errors.email && (
                         <p className="mt-1 text-sm text-red-600">
@@ -118,24 +204,38 @@ export const LoginForm = () => {
                     >
                         Password
                     </label>
-                    <input
-                        id="password"
-                        {...register('password')}
-                        type="password"
-                        autoComplete="current-password"
-                        className={`mt-1 text-black block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            errors.password
-                                ? 'border-red-300'
-                                : 'border-gray-300'
-                        }`}
-                        placeholder="Enter your password"
-                        disabled={isSubmitting}
-                    />
-                    {errors.password && (
-                        <p className="mt-1 text-sm text-red-600">
-                            {errors.password.message}
-                        </p>
-                    )}
+                    <div className="relative">
+                        <input
+                            id="password"
+                            {...register('password')}
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            className={`mt-1 text-black block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                errors.password
+                                    ? 'border-red-300'
+                                    : 'border-gray-300'
+                            }`}
+                            placeholder="Enter your password"
+                            disabled={isLoading}
+                        />
+                        {errors.password && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.password.message}
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 focus:outline-none"
+                            onClick={() => setShowPassword((v: boolean) => !v)}
+                        >
+                            {showPassword ? (
+                                <FiEyeOff className="h-5 w-5" />
+                            ) : (
+                                <FiEye className="h-5 w-5" />
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -157,10 +257,10 @@ export const LoginForm = () => {
 
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isLoading}
                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    {isSubmitting ? (
+                    {isLoading ? (
                         <div className="flex items-center">
                             <svg
                                 className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
