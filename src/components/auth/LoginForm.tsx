@@ -96,7 +96,7 @@ export const LoginForm = () => {
                     toast.success('Login successful!', {
                         position: 'top-right',
                     });
-                    router.push('/');
+                    router.push('/feed');
                 }
             },
             onError: (error) => {
