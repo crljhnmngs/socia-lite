@@ -20,3 +20,25 @@ export type LoadingProps = {
     size?: LoadingSize;
     text?: string;
 };
+
+export type Profile = {
+    user_id: string;
+    firstName: string;
+    lastName: string;
+    avatar_url?: string | null;
+    role: string;
+    created_at: string;
+};
+
+export type Post = {
+    id: string;
+    user_id: string;
+    content: string;
+    created_at: string;
+    updated_at: string;
+    profiles: {
+        firstName: string;
+        lastName: string;
+        avatar_url?: string | null;
+    };
+};
