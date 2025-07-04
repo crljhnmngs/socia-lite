@@ -3,14 +3,19 @@ import { Profile } from '@/types';
 import { getProfileByUserId } from '@/lib/api/user/profile';
 
 export function useProfile(userId?: string) {
-    const query = useQuery<Profile | null, Error>({
+    const {
+        data: profile,
+        isLoading,
+        error,
+        ...rest
+    } = useQuery<Profile | null, Error>({
         queryKey: ['profile', userId],
         queryFn: () =>
             userId ? getProfileByUserId(userId) : Promise.resolve(null),
         enabled: !!userId,
-        staleTime: 600000, // 10 minutes
+        staleTime: 10 * 60 * 1000, // 10 minutes
     });
-    const { data: profile, isLoading, error, ...rest } = query;
+
     return {
         profile,
         isLoading,

@@ -4,17 +4,22 @@ import { Profile } from '@/types';
 export async function getProfileByUserId(
     userId: string
 ): Promise<Profile | null> {
-    const { data, error } = await supabaseClient
+    const query = supabaseClient
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-    if (!data && !error) return null;
+    const { data, error } = await query;
 
-    if (error && error.code === 'PGRST116') return null;
+    if (!data || (error && error.code === 'PGRST116')) {
+        return null;
+    }
 
-    if (error) throw new Error(error.message);
+    if (error) {
+        console.error('Error fetching profile:', error);
+        throw new Error('Failed to fetch profile');
+    }
 
-    return data;
+    return data as Profile;
 }

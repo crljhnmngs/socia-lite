@@ -1,17 +1,27 @@
 import supabaseClient from '@/lib/supabase/client';
+import { Post } from '@/types';
 
 export async function getPosts() {
-    const { data, error } = await supabaseClient
+    const query = supabaseClient
         .from('posts')
-        .select(`
-            *,
-            profiles (
-                firstName,
-                lastName,
-                avatar_url
-            )
-        `)
+        .select(
+            `
+      *,
+      public_profiles (
+        firstName,
+        lastName,
+        avatar_url
+      )
+    `
+        )
         .order('created_at', { ascending: false });
-    if (error) throw new Error(error.message);
-    return data;
-} 
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error('Error fetching posts:', error);
+        throw new Error('Failed to fetch posts');
+    }
+
+    return data as Post[];
+}

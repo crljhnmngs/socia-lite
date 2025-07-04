@@ -36,9 +36,8 @@ export type Post = {
     content: string;
     created_at: string;
     updated_at: string;
-    profiles: {
-        firstName: string;
-        lastName: string;
-        avatar_url?: string | null;
-    };
+    public_profiles: Pick<
+        Profile,
+        'firstName' | 'lastName' | 'avatar_url'
+    > | null;
 };
