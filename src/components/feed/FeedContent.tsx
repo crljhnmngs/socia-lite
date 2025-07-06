@@ -3,23 +3,31 @@
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { useEffect, useState } from 'react';
-import { FaRegThumbsUp, FaRegCommentDots } from 'react-icons/fa';
+import { FaRegCommentDots } from 'react-icons/fa';
+import { FaRegThumbsUp, FaThumbsUp } from 'react-icons/fa6';
 import { useProfile } from '@/hooks/queries/useProfile';
 import { AvatarText } from '@/components/ui/avatar-text';
 import { useCreatePost } from '@/hooks/mutations/useCreatePost';
 import { usePosts } from '@/hooks/queries/usePosts';
-import { Post } from '@/types';
+import { PostWithProfileAndLikes } from '@/types';
 import toast from 'react-hot-toast';
+import { useToggleLikePost } from '@/hooks/mutations/useToggleLikePost';
 
 export const FeedContent = () => {
-    const { user } = useUser();
+    const { user, signOut } = useUser();
     const { profile, error: profileError } = useProfile(user?.id);
     const { posts, error: postsError } = usePosts();
     const [postContent, setPostContent] = useState('');
     const { createPost, isLoading: isPosting } = useCreatePost();
+    const { toggleLikePost, error: toggleLikeError } = useToggleLikePost();
 
     const handlePost = () => {
-        if (!postContent.trim() || !user?.id) return;
+        if (!postContent.trim()) return;
+
+        if (!user?.id) {
+            signOut();
+            return;
+        }
 
         createPost(
             { user_id: user.id, content: postContent },
@@ -36,6 +44,15 @@ export const FeedContent = () => {
         );
     };
 
+    const handleToggleLike = (postId: string) => {
+        if (!user?.id) {
+            signOut();
+            return;
+        }
+
+        toggleLikePost({ post_id: postId, user_id: user.id });
+    };
+
     useEffect(() => {
         if (profileError) {
             console.error('Error loading profile:', profileError);
@@ -50,7 +67,14 @@ export const FeedContent = () => {
         }
     }, [postsError]);
 
-    const getPostUserInfo = (post: Post) => {
+    useEffect(() => {
+        if (toggleLikeError) {
+            console.error('Error liking/unliking post:', toggleLikeError);
+            toast.error('Failed to like/unlike post.');
+        }
+    }, [toggleLikeError]);
+
+    const getPostUserInfo = (post: PostWithProfileAndLikes) => {
         const fullName =
             post.public_profiles?.firstName +
             ' ' +
@@ -72,23 +96,25 @@ export const FeedContent = () => {
     return (
         <main className="max-w-2xl mx-auto px-4 py-8">
             <section className="bg-white p-4 rounded-lg shadow mb-6">
-                <textarea
-                    className="w-full border border-gray-300 rounded-md p-2 resize-none text-black focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    rows={3}
-                    placeholder="What's on your mind?"
-                    value={postContent}
-                    onChange={(e) => setPostContent(e.target.value)}
-                    disabled={isPosting}
-                />
-                <div className="flex justify-end mt-2">
-                    <button
-                        onClick={handlePost}
-                        disabled={isPosting || !postContent.trim()}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                        {isPosting ? 'Posting...' : 'Post'}
-                    </button>
-                </div>
+                <form onClick={handlePost}>
+                    <textarea
+                        className="w-full border border-gray-300 rounded-md p-2 resize-none text-black focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        rows={3}
+                        placeholder="What's on your mind?"
+                        value={postContent}
+                        onChange={(e) => setPostContent(e.target.value)}
+                        disabled={isPosting}
+                    />
+                    <div className="flex justify-end mt-2">
+                        <button
+                            type="submit"
+                            disabled={isPosting || !postContent.trim()}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            {isPosting ? 'Posting...' : 'Post'}
+                        </button>
+                    </div>
+                </form>
             </section>
 
             <section>
@@ -98,7 +124,7 @@ export const FeedContent = () => {
                     </div>
                 ) : (
                     <ul className="space-y-4">
-                        {posts.map((post: Post) => {
+                        {posts.map((post: PostWithProfileAndLikes) => {
                             const { name, avatar, fullName } =
                                 getPostUserInfo(post);
                             return (
@@ -126,9 +152,23 @@ export const FeedContent = () => {
                                         {post.content}
                                     </div>
                                     <div className="flex items-center space-x-4 mt-2">
-                                        <button className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 focus:outline-none cursor-pointer">
-                                            <FaRegThumbsUp className="w-5 h-5" />
-                                            <span>0</span>
+                                        <button
+                                            className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 focus:outline-none cursor-pointer"
+                                            onClick={() =>
+                                                handleToggleLike(post.id)
+                                            }
+                                        >
+                                            {post.post_likes.some(
+                                                (like) =>
+                                                    like.user_id === user?.id
+                                            ) ? (
+                                                <FaThumbsUp className="size-6" />
+                                            ) : (
+                                                <FaRegThumbsUp className="size-6" />
+                                            )}
+                                            <span className="font-medium">
+                                                {post.likesCount}
+                                            </span>
                                         </button>
                                         <button className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 focus:outline-none cursor-pointer">
                                             <FaRegCommentDots className="w-5 h-5" />

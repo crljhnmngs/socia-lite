@@ -1,10 +1,6 @@
 import supabaseClient from '@/lib/supabase/client';
 import { Post } from '@/types';
-
-type CreatePostInput = {
-    user_id: string;
-    content: string;
-};
+import { CreatePostInput } from '@/types';
 
 export async function createPost({
     user_id,

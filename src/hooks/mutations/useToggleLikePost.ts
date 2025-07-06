@@ -1,19 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createPost } from '@/lib/api/post/create';
-import { CreatePostInput } from '@/types';
+import { ToggleLikePostInput } from '@/types';
+import { toggleLikePost } from '@/lib/api/post/toggleLike';
 
-export function useCreatePost() {
+export function useToggleLikePost() {
     const queryClient = useQueryClient();
 
     const mutation = useMutation({
-        mutationFn: (data: CreatePostInput) => createPost(data),
+        mutationFn: (data: ToggleLikePostInput) => toggleLikePost(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['posts'] });
         },
     });
 
     return {
-        createPost: mutation.mutate,
+        toggleLikePost: mutation.mutate,
         isLoading: mutation.isPending,
         ...mutation,
     };

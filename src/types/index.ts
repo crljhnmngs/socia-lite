@@ -36,8 +36,23 @@ export type Post = {
     content: string;
     created_at: string;
     updated_at: string;
+};
+
+export type PostWithProfileAndLikes = Post & {
     public_profiles: Pick<
         Profile,
         'firstName' | 'lastName' | 'avatar_url'
     > | null;
+    post_likes: { user_id: string }[];
+    likesCount: number;
+};
+
+export type CreatePostInput = {
+    user_id: string;
+    content: string;
+};
+
+export type ToggleLikePostInput = {
+    post_id: string;
+    user_id: string;
 };
