@@ -56,3 +56,14 @@ export type ToggleLikePostInput = {
     post_id: string;
     user_id: string;
 };
+
+export type GetPostsParams = {
+    pageParam?: number;
+    limit?: number;
+};
+
+export type GetPostsReturn = {
+    posts: PostWithProfileAndLikes[];
+    nextPage: number;
+    total: number;
+};

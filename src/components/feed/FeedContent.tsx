@@ -16,18 +16,22 @@ import { useToggleLikePost } from '@/hooks/mutations/useToggleLikePost';
 export const FeedContent = () => {
     const { user, signOut } = useUser();
     const { profile, error: profileError } = useProfile(user?.id);
-    const { posts, error: postsError } = usePosts();
+    const {
+        data,
+        error: postsError,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = usePosts();
     const [postContent, setPostContent] = useState('');
     const { createPost, isLoading: isPosting } = useCreatePost();
     const { toggleLikePost, error: toggleLikeError } = useToggleLikePost();
 
+    const posts = data?.pages.flatMap((page) => page.posts) ?? [];
+
     const handlePost = () => {
         if (!postContent.trim()) return;
-
-        if (!user?.id) {
-            signOut();
-            return;
-        }
+        if (!user?.id) return signOut();
 
         createPost(
             { user_id: user.id, content: postContent },
@@ -45,50 +49,27 @@ export const FeedContent = () => {
     };
 
     const handleToggleLike = (postId: string) => {
-        if (!user?.id) {
-            signOut();
-            return;
-        }
-
+        if (!user?.id) return signOut();
         toggleLikePost({ post_id: postId, user_id: user.id });
     };
 
     useEffect(() => {
-        if (profileError) {
-            console.error('Error loading profile:', profileError);
-            toast.error('Failed to load your profile.');
-        }
-    }, [profileError]);
-
-    useEffect(() => {
-        if (postsError) {
-            console.error('Error loading posts:', postsError);
-            toast.error('Failed to load posts.');
-        }
-    }, [postsError]);
-
-    useEffect(() => {
-        if (toggleLikeError) {
-            console.error('Error liking/unliking post:', toggleLikeError);
-            toast.error('Failed to like/unlike post.');
-        }
-    }, [toggleLikeError]);
+        if (profileError) toast.error('Failed to load your profile.');
+        if (postsError) toast.error('Failed to load posts.');
+        if (toggleLikeError) toast.error('Failed to like/unlike post.');
+    }, [profileError, postsError, toggleLikeError]);
 
     const getPostUserInfo = (post: PostWithProfileAndLikes) => {
         const fullName =
             post.public_profiles?.firstName +
             ' ' +
             post.public_profiles?.lastName;
-        if (post.user_id === user?.id) {
-            return {
-                name: 'You',
-                avatar: profile?.avatar_url,
-                fullName,
-            };
-        }
         return {
-            name: fullName,
-            avatar: post.public_profiles?.avatar_url,
+            name: post.user_id === user?.id ? 'You' : fullName,
+            avatar:
+                post.user_id === user?.id
+                    ? profile?.avatar_url
+                    : post.public_profiles?.avatar_url,
             fullName,
         };
     };
@@ -124,7 +105,7 @@ export const FeedContent = () => {
                     </div>
                 ) : (
                     <ul className="space-y-4">
-                        {posts.map((post: PostWithProfileAndLikes) => {
+                        {posts.map((post) => {
                             const { name, avatar, fullName } =
                                 getPostUserInfo(post);
                             return (
@@ -179,6 +160,20 @@ export const FeedContent = () => {
                             );
                         })}
                     </ul>
+                )}
+
+                {hasNextPage && (
+                    <div className="mt-6 text-center">
+                        <button
+                            onClick={() => fetchNextPage()}
+                            disabled={isFetchingNextPage}
+                            className="bg-gray-100 px-4 py-2 rounded text-sm text-gray-700 hover:bg-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            {isFetchingNextPage
+                                ? 'Loading more...'
+                                : 'View more'}
+                        </button>
+                    </div>
                 )}
             </section>
         </main>
